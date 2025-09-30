@@ -1,4 +1,4 @@
-import { LayoutDashboard, Music, Calendar, Mic, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Music, Calendar, Mic, BarChart3, ListMusic } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface BottomNavProps {
@@ -10,9 +10,9 @@ export const BottomNav = ({ activeView, onNavigate }: BottomNavProps) => {
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "library", label: "Biblioteca", icon: Music },
+    { id: "playlists", label: "Playlists", icon: ListMusic },
     { id: "shows", label: "Shows", icon: Calendar },
     { id: "stage", label: "Palco", icon: Mic },
-    { id: "reports", label: "Relatórios", icon: BarChart3 },
   ];
 
   return (

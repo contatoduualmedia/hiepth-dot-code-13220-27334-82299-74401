@@ -4,12 +4,13 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { Dashboard } from "@/components/dashboard/Dashboard";
 import { MusicLibrary } from "@/components/music/MusicLibrary";
+import { PlaylistManager } from "@/components/music/PlaylistManager";
 import { SetlistManager } from "@/components/setlist/SetlistManager";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
 
 const Index = () => {
-  const [currentView, setCurrentView] = useState<"login" | "dashboard" | "library" | "shows" | "stage" | "reports">("dashboard");
+  const [currentView, setCurrentView] = useState<"login" | "dashboard" | "library" | "playlists" | "shows" | "stage" | "reports">("dashboard");
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -75,6 +76,12 @@ const Index = () => {
       {currentView === "library" && (
         <main className="container mx-auto max-w-6xl px-4 py-6">
           <MusicLibrary />
+        </main>
+      )}
+      
+      {currentView === "playlists" && (
+        <main className="container mx-auto max-w-6xl px-4 py-6">
+          <PlaylistManager />
         </main>
       )}
       

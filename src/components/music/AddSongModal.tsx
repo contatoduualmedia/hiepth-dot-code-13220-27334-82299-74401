@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -19,6 +19,7 @@ const songSchema = z.object({
   genre: z.string().optional(),
   lyrics: z.string().optional(),
   chords: z.string().optional(),
+  playlistId: z.string().optional(),
 });
 
 type SongFormData = z.infer<typeof songSchema>;
@@ -32,6 +33,7 @@ interface AddSongModalProps {
 export const AddSongModal = ({ isOpen, onClose, onSuccess }: AddSongModalProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("manual");
+  const [playlists, setPlaylists] = useState<any[]>([]);
   const { toast } = useToast();
 
   const form = useForm<SongFormData>({
@@ -43,8 +45,40 @@ export const AddSongModal = ({ isOpen, onClose, onSuccess }: AddSongModalProps) 
       genre: "",
       lyrics: "",
       chords: "",
+      playlistId: "",
     },
   });
+
+  const fetchPlaylists = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!profile) return;
+
+      const { data } = await supabase
+        .from("playlists")
+        .select("*")
+        .eq("artist_id", profile.id)
+        .order("created_at", { ascending: false });
+
+      setPlaylists(data || []);
+    } catch (error) {
+      console.error("Error fetching playlists:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchPlaylists();
+    }
+  }, [isOpen]);
 
   const handleSubmit = async (data: SongFormData) => {
     setIsLoading(true);
@@ -60,7 +94,7 @@ export const AddSongModal = ({ isOpen, onClose, onSuccess }: AddSongModalProps) 
         return;
       }
 
-      const { error } = await supabase.from("songs").insert({
+      const { data: songData, error: songError } = await supabase.from("songs").insert({
         title: data.title,
         artist: data.artist,
         key: data.key || null,
@@ -68,13 +102,25 @@ export const AddSongModal = ({ isOpen, onClose, onSuccess }: AddSongModalProps) 
         lyrics: data.lyrics || null,
         chords: data.chords || null,
         user_id: user.id,
-      });
+      }).select().single();
 
-      if (error) throw error;
+      if (songError) throw songError;
+
+      // Add to playlist if selected
+      if (data.playlistId && songData) {
+        const { error: playlistError } = await supabase.from("playlist_songs").insert({
+          playlist_id: data.playlistId,
+          song_id: songData.id,
+        });
+
+        if (playlistError) throw playlistError;
+      }
 
       toast({
         title: "Sucesso",
-        description: "Música adicionada com sucesso!",
+        description: data.playlistId 
+          ? "Música adicionada à playlist com sucesso!" 
+          : "Música adicionada com sucesso!",
       });
 
       form.reset();
@@ -162,6 +208,31 @@ export const AddSongModal = ({ isOpen, onClose, onSuccess }: AddSongModalProps) 
                       <FormControl>
                         <Input placeholder="Rock, Pop, etc." {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="playlistId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Adicionar à Playlist (opcional)</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione uma playlist" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {playlists.map((playlist) => (
+                            <SelectItem key={playlist.id} value={playlist.id}>
+                              {playlist.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

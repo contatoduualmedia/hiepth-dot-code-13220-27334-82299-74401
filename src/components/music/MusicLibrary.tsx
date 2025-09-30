@@ -3,10 +3,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, Music2, FileText, Settings } from "lucide-react";
+import { Search, Plus, Music2, FileText, Edit, Trash2, MoreVertical } from "lucide-react";
 import { AddSongModal } from "./AddSongModal";
+import { EditSongModal } from "./EditSongModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export const MusicLibrary = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -14,6 +31,8 @@ export const MusicLibrary = () => {
   const [songs, setSongs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingSong, setEditingSong] = useState<any>(null);
+  const [deletingSong, setDeletingSong] = useState<any>(null);
   const { toast } = useToast();
 
   const categories = ["Todas", "Rock", "Pop", "MPB", "Sertanejo", "Folk"];
@@ -55,6 +74,33 @@ export const MusicLibrary = () => {
     const matchesCategory = selectedCategory === "Todas" || song.genre === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  const handleDelete = async () => {
+    if (!deletingSong) return;
+
+    try {
+      const { error } = await supabase
+        .from("songs")
+        .delete()
+        .eq("id", deletingSong.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Música excluída",
+        description: "A música foi removida da biblioteca.",
+      });
+
+      setDeletingSong(null);
+      fetchSongs();
+    } catch (error: any) {
+      toast({
+        title: "Erro ao excluir",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -110,9 +156,26 @@ export const MusicLibrary = () => {
                     <CardDescription>{song.artist}</CardDescription>
                   </div>
                 </div>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Settings className="h-4 w-4" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setEditingSong(song)}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setDeletingSong(song)}
+                      className="text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Excluir
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </CardHeader>
             
@@ -157,6 +220,30 @@ export const MusicLibrary = () => {
         onClose={() => setIsAddModalOpen(false)}
         onSuccess={fetchSongs}
       />
+
+      {editingSong && (
+        <EditSongModal
+          isOpen={!!editingSong}
+          onClose={() => setEditingSong(null)}
+          onSuccess={fetchSongs}
+          song={editingSong}
+        />
+      )}
+
+      <AlertDialog open={!!deletingSong} onOpenChange={() => setDeletingSong(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir música?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir "{deletingSong?.title}"? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
